@@ -111,28 +111,41 @@ def parse_lut(lut_path):
     return ids, lut_colors, lut_names_list, max_id
 
 
-def read_tsf(tsf_path: str) -> list[int | float]:
-    """read an MRtrix3 .tsf (track scalar file)."""
+def load_tsf(tsf_path: str) -> np.ndarray:
+    """
+    Reads an MRtrix3 .tsf (track scalar file). Useful for users who 
+    have already computed tractometry metrics using MRtrix3's `tcksample` 
+    command and want to plot the resulting values in yabplot.
+    
+    Parameters
+    ----------
+    tsf_path : str
+        absolute path to the .tsf file.
+        
+    Returns
+    -------
+    numpy.ndarray
+        1D array of scalar values for the streamlines.
+    """
     if not os.path.isfile(tsf_path):
         raise FileNotFoundError(f"File not found: {tsf_path}")
+    
     header: dict[str, str] = {}
     data_offset: int | None = None
+
     with open(tsf_path, "rb") as fh:
         # first line must be the magic string
         magic_line = fh.readline().decode("ascii", errors="replace").strip()
         if not magic_line.lower().startswith("mrtrix track scalars"):
             raise ValueError(
-                "Not a valid MRtrix TSF file "
-                "(missing 'mrtrix track scalars' magic)."
+                "Not a valid MRtrix TSF file (missing 'mrtrix track scalars' magic)."
             )
         header["magic"] = magic_line
 
         while True:
             line = fh.readline()
             if not line:
-                raise ValueError(
-                    "Unexpected end of file while reading header."
-                )
+                raise ValueError("Unexpected end of file while reading header.")
             line = line.decode("ascii", errors="replace").strip()
             if line == "END":
                 break
@@ -146,21 +159,17 @@ def read_tsf(tsf_path: str) -> list[int | float]:
 
                 # capture the data offset
                 if key.lower() == "file":
-                    # Value is typically ". <offset>"
                     parts = value.split()
                     data_offset = int(parts[-1])
 
         if data_offset is None:
-            raise ValueError(
-                "Could not determine data offset from header "
-                "('file' key missing)."
-            )
+            raise ValueError("Could not determine data offset from header.")
 
-        # 2. read the binary data -------------------------------------
+        # read the binary data
         fh.seek(data_offset)
         raw_bytes = fh.read()
 
-    # determine byte order from header (default: Float32LE)
+    # determine byte order from header
     datatype = header.get("datatype", "Float32LE").lower()
     byte_order = ">" if datatype.endswith("be") else "<"
 
@@ -174,26 +183,11 @@ def read_tsf(tsf_path: str) -> list[int | float]:
     usable = len(raw_bytes) - (len(raw_bytes) % element_size)
     raw_data = np.frombuffer(raw_bytes[:usable], dtype=dtype)
 
-    # --- 3. split into per-streamline vectors ----------------------------
-    #   NaN  → streamline separator
-    #   Inf  → end-of-file marker
+    # split into per-streamline vectors
     inf_mask = np.isinf(raw_data)
     inf_indices = np.where(inf_mask)[0]
     if inf_indices.size > 0:
         raw_data = raw_data[: inf_indices[0]]
 
     nan_mask = np.isnan(raw_data)
-    # indices where NaN occurs mark the *end* of each streamline
-    split_indices = np.where(nan_mask)[0]
-    # however we need a flat list anyways for plotting: remove NaNs
-    data = raw_data[~nan_mask].tolist()
-    return data
-
-def flatten(lst):
-    result = []
-    for i in lst:
-        if isinstance(i, list):
-            result.extend(flatten(i))
-        else:
-            result.append(i)
-    return result
+    return raw_data[~nan_mask]

@@ -5,8 +5,11 @@ examples_/
 docs/tutorials/tutorial_data/
 dev/
 site/
+paper/
 test.ipynb
 todo.md
+test_data/
+*.ipynb
 
 .DS_Store
 __pycache__/

@@ -13,7 +13,7 @@ from .data import (
 
 from .utils import (
     load_gii, load_gii2pv, prep_data,
-    generate_distinct_colors, parse_lut, flatten
+    generate_distinct_colors, parse_lut
 )
 
 from .mesh import (
@@ -568,9 +568,17 @@ def plot_tracts(data=None, atlas=None, custom_atlas_path=None, views=None, layou
     # prepare colors and map data
     if data is not None:
         d_data = prep_data(data, tract_names, atlas, 'tracts')
-        valid_vals = flatten([v for v in d_data.values() if np.all(pd.notna(v))])
-        vmin = vminmax[0] if vminmax[0] is not None else (min(valid_vals) if valid_vals else 0)
-        vmax = vminmax[1] if vminmax[1] is not None else (max(valid_vals) if valid_vals else 1)
+        all_vals = []
+        for v in d_data.values():
+            v_arr = np.atleast_1d(v)
+            all_vals.append(v_arr[~np.isnan(v_arr)])
+            
+        if all_vals:
+            valid_vals = np.concatenate(all_vals)
+            vmin = vminmax[0] if vminmax[0] is not None else (np.min(valid_vals) if len(valid_vals) else 0)
+            vmax = vminmax[1] if vminmax[1] is not None else (np.max(valid_vals) if len(valid_vals) else 1)
+        else:
+            vmin, vmax = 0, 1
         c_vlim = [vmin, vmax]
     # categorical/orientation mode
     else:
@@ -641,11 +649,20 @@ def plot_tracts(data=None, atlas=None, custom_atlas_path=None, views=None, layou
             val = np.nan
             
             if data is not None and not orientation_coloring:
-                if name in d_data and np.all(pd.notna(d_data[name])):
+                # check data
+                if name in d_data and d_data[name] is not None:
                     val = d_data[name]
-                    has_value = True
-                elif nan_alpha == 0:
-                    continue 
+                    if np.isscalar(val) and np.isnan(val):
+                        has_value = False
+                    elif not np.isscalar(val) and np.all(np.isnan(val)):
+                        has_value = False
+                    else:
+                        has_value = True
+                else:
+                    has_value = False
+
+                if not has_value and nan_alpha == 0:
+                    continue
             
             # side filtering
             name_lower = name.lower()
@@ -672,19 +689,16 @@ def plot_tracts(data=None, atlas=None, custom_atlas_path=None, views=None, layou
 
             elif data is not None:
                 if np.isscalar(val):
-                    if pd.isna(val):
-                        pv_mesh['Data'] = np.full(pv_mesh.n_points, np.nan)
-                    else:
-                        pv_mesh['Data'] = np.full(pv_mesh.n_points, val)
+                    pv_mesh['Data'] = np.full(pv_mesh.n_points, val)
                 elif len(val) == 1:
                     pv_mesh['Data'] = np.full(pv_mesh.n_points, val[0])
                 elif len(val) == pv_mesh.n_points:
                     pv_mesh['Data'] = val
                 else:
                     raise ValueError(
-                        "Data shape is not applicable for this mesh. Must be 1D or equal to n_points. "
-                        f"Shape of data: {np.shape(val)}. "
-                        f"Number of points: {pv_mesh.n_points}"
+                        f"Data shape mismatch for tract '{name}'. Must be a scalar "
+                        f"or a 1D array matching the number of points. "
+                        f"Array shape: {np.shape(val)}, mesh points: {pv_mesh.n_points}"
                     )
 
                 current_opacity = alpha if has_value else nan_alpha
