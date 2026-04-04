@@ -8,7 +8,7 @@
     options:
         show_root_heading: true
 
-::: yabplot.mesh.make_bmesh_nii2gii
+::: yabplot.mesh.load_nii_as_mesh
     options:
         show_root_heading: true
 
