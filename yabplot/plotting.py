@@ -38,7 +38,13 @@ def _load_bmesh(bmesh):
         lh_path, rh_path = get_surface_paths(bmesh, 'bmesh')
         return {'L': load_gii2pv(lh_path), 'R': load_gii2pv(rh_path)}
     if isinstance(bmesh, dict):
-        return bmesh
+        clean_dict = {}
+        for k, v in bmesh.items():
+            if k.upper() in ['L', 'LEFT']: clean_dict['L'] = v
+            elif k.upper() in ['R', 'RIGHT']: clean_dict['R'] = v
+            else: clean_dict[k] = v
+        return clean_dict
+    
     return {'both': bmesh}
 
 def _extract_polydata(mesh_hemi: pv.PolyData):
@@ -132,9 +138,9 @@ def _render_cortical_views(lh_v, lh_f, lh_vals, rh_v, rh_f, rh_vals, is_cat,
 ### PLOT FOR ATLAS-BASED CORTICAL DATA ###
 
 def plot_cortical(data=None, atlas=None, custom_atlas_path=None, views=None, layout=None, 
-                  bmesh='midthickness', scalars='Data', figsize=(1000, 600), cmap='coolwarm', 
-                  vminmax=[None, None], nan_color=(1.0, 1.0, 1.0), style='default', zoom=1.2, 
-                  proc_vertices=None, display_type='static', export_path=None):
+                  bmesh='midthickness', figsize=(1000, 600), cmap='coolwarm', vminmax=[None, None], 
+                  nan_color=(1.0, 1.0, 1.0), style='default', zoom=1.2, proc_vertices=None,
+                  display_type='static', export_path=None):
     """
     Visualize data on the cortical surface using a specified atlas.
 
@@ -159,14 +165,10 @@ def plot_cortical(data=None, atlas=None, custom_atlas_path=None, views=None, lay
         Views to display. Can be a list of presets ('left_lateral', 'right_medial', etc.)
         or a dictionary of camera configurations. Defaults to all views.
     layout : tuple (rows, cols), optional
-        Grid layout for subplots. If None, automatically calculated based on the number of views.                                                                                
-    bmesh : pyvista.PolyData or dict, optional                                                                                                   
-        Configure background context brain mesh. Accepts a string 
-        (e.g., 'midthickness', 'white', 'swm', etc), single PolyData (used for both hemispheres)                                                        
-        or a dict with 'L'/'R' keys. Default is 'midthickness'.
-    scalars : str, optional
-        The string key corresponding to the scalar data array in the PyVista 
-        point data dictionary. Default is 'Data'.  
+        Grid layout for subplots. If None, automatically calculated based on the number of views.
+    bmesh : str
+        Name of the background context brain mesh (e.g., 'midthickness', 'white', 'swm', etc). 
+        Default is 'midthickness'.
     figsize : tuple (width, height), optional
         Window size in pixels. Default is (1000, 600).
     cmap : str or matplotlib.colors.Colormap, optional
@@ -201,36 +203,26 @@ def plot_cortical(data=None, atlas=None, custom_atlas_path=None, views=None, lay
     # atlas and categorical check
     if atlas is None and custom_atlas_path is None:
         atlas = 'aparc'
-    is_cat = (data is None and not isinstance(bmesh, dict))
+    is_cat = (data is None)
 
     # load brain mesh
-    if bmesh is None:                                     
-      raise ValueError("plot_cortical requires a background mesh; bmesh cannot be None.")
-      
-    loaded_bmesh = _load_bmesh(bmesh)
-    lh_v, lh_f = _extract_polydata(loaded_bmesh['L'])
-    rh_v, rh_f = _extract_polydata(loaded_bmesh['R'])
-        
-    if isinstance(bmesh, dict):
-        # extract data from PolyData instance, skip atlas
-        lh_vals_raw = loaded_bmesh['L'][scalars]
-        rh_vals_raw = loaded_bmesh['R'][scalars]
-        is_cat = False
-        lut_colors, max_id = None, None
-    else:
-        # resolve atlas
-        atlas_dir = _resolve_resource_path(atlas, 'cortical', custom_path=custom_atlas_path)
-        check_name = None if custom_atlas_path else atlas
-        csv_path, lut_path = _find_cortical_files(atlas_dir, strict_name=check_name)
+    b_lh_path, b_rh_path = get_surface_paths(bmesh, 'bmesh')
+    lh_v, lh_f = load_gii(b_lh_path)
+    rh_v, rh_f = load_gii(b_rh_path)
 
-        # load mapping data
-        tar_labels = np.loadtxt(csv_path, dtype=int)
-        lut_ids, lut_colors, lut_names, max_id = parse_lut(lut_path)
+    # resolve atlas
+    atlas_dir = _resolve_resource_path(atlas, 'cortical', custom_path=custom_atlas_path)
+    check_name = None if custom_atlas_path else atlas
+    csv_path, lut_path = _find_cortical_files(atlas_dir, strict_name=check_name)
 
-        # map data
-        all_vals = map_values_to_surface(data, tar_labels, lut_ids, lut_names)
-        lh_vals_raw = all_vals[:len(lh_v)]
-        rh_vals_raw = all_vals[len(lh_v):]
+    # load mapping data
+    tar_labels = np.loadtxt(csv_path, dtype=int)
+    lut_ids, lut_colors, lut_names, max_id = parse_lut(lut_path)
+
+    # map data
+    all_vals = map_values_to_surface(data, tar_labels, lut_ids, lut_names)
+    lh_vals_raw = all_vals[:len(lh_v)]
+    rh_vals_raw = all_vals[len(lh_v):]
 
     # render
     return _render_cortical_views(
@@ -251,8 +243,8 @@ def plot_vertexwise(lh, rh, scalars='Data', views=None, layout=None, figsize=(10
     Visualize arbitrary per-vertex scalar data on a user-supplied brain mesh.
 
     Unlike `plot_cortical`, this function requires no atlas. The user provides 
-    PyVista PolyData meshes (e.g., from `make_cortical_mesh`) with per-vertex 
-    scalar data stored under the key specified by `scalars`.
+    PyVista PolyData meshes with per-vertex scalar data stored under the key specified 
+    by `scalars`.
 
     Parameters
     ----------
@@ -313,11 +305,9 @@ def plot_vertexwise(lh, rh, scalars='Data', views=None, layout=None, figsize=(10
     """
 
     # extract v, f, raw from PyVista meshes
-    lh_v = lh.points
-    lh_f = lh.faces.reshape(-1, 4)[:, 1:]
+    lh_v, lh_f = _extract_polydata(lh)
     lh_vals_raw = lh[scalars]
-    rh_v = rh.points
-    rh_f = rh.faces.reshape(-1, 4)[:, 1:]
+    rh_v, rh_f = _extract_polydata(rh)
     rh_vals_raw = rh[scalars]
 
     # render
