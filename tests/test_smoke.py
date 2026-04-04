@@ -23,9 +23,12 @@ def test_dict_passthrough():
     Unit test: Verify that custom dictionary keys for hemispheres 
     are properly sanitized to strict 'L' and 'R' keys.
     """
-    d = {'left': 'something', 'RIGHT': 'something_else', 'other': 'keep_me'}
+    mesh_l = pv.Sphere()
+    mesh_r = pv.Cube()
+    mesh_other = pv.Cone()
+    d = {'left': mesh_l, 'RIGHT': mesh_r, 'other': mesh_other}
     result = yab.mesh.load_bmesh(d)
-    expected = {'L': 'something', 'R': 'something_else', 'other': 'keep_me'}
+    expected = {'L': mesh_l, 'R': mesh_r, 'other': mesh_other}
     assert result == expected
 
 def test_polydata_wrapped_in_both():

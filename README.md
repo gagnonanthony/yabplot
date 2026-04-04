@@ -14,7 +14,7 @@ the idea is simple. while there are already amazing visualization tools availabl
 ## features
 
 * **pre-existing atlases:** access many commonly used atlases (schaefer2018, brainnetome, aparc, aseg, musus100, xtract, etc) on demand.
-* [new!] **vertexwise plotting:** project volume (.nii) to cortical surface and plot.
+* **vertexwise plotting:** project volume (.nii) to cortical surface and plot.
 * **simple to use:** plug-n-play functions for cortex, subcortex, and tracts with a unified API.
 * **custom atlases:** easily use your own parcellations, segmentations (.nii/.gii), or tractograms (.trk).
 * **flexible inputs:** accepts data as dictionaries (for partial mapping) or arrays (for strict mapping).
@@ -58,11 +58,11 @@ atlas = 'aparc'
 dmap1 = {'L_lateraloccipital': 0.265, 'L_postcentral': 0.086, ...}
 dmap2 = {'L_fusiform': 0.218, 'L_supramarginal': 0.119, ...}
 yab.plot_cortical(data=dmap1, atlas=atlas, vminmax=[-0.1, 0.3], 
-                  bmesh_type='midthickness', views=['left_lateral', 'left_medial'],
-                  figsize=(600, 300), cmap='viridis', proc_vertices='sharp')
+                  bmesh='midthickness', views=['left_lateral', 'left_medial'],
+                  figsize=(600, 300), cmap='viridis')
 yab.plot_cortical(data=dmap2, atlas=atlas, vminmax=[-0.1, 0.3], 
-                  bmesh_type='swm', views=['left_lateral', 'left_medial'],
-                  figsize=(1200, 600), cmap='viridis', proc_vertices='sharp')
+                  bmesh='swm', views=['left_lateral', 'left_medial'],
+                  figsize=(1200, 600), cmap='viridis')
 
 # subcortical structures
 atlas = 'aseg'
@@ -77,7 +77,7 @@ atlas = 'xtract_tiny'
 regs = yab.get_atlas_regions(atlas=atlas, category='tracts')
 data = {reg: np.sin(i) for i, reg in enumerate(regs)}
 yab.plot_tracts(data=data, atlas=atlas, style='matte',
-                views=['left_lateral', 'anterior', 'superior'], bmesh_type='pial',
+                views=['left_lateral', 'anterior', 'superior'], bmesh='pial',
                 bmesh_alpha=0.1, figsize=(1600, 800), cmap='viridis')
 
 ```
