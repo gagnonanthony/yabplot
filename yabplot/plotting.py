@@ -633,6 +633,7 @@ def plot_tracts(data=None, atlas=None, custom_atlas_path=None, views=None, layou
 
         # add tracts
         for name in tract_names:
+            print(f"Processing tract '{name}' for view '{view_name}'... and config {cfg}")
             # optimization: early exit for hidden tracts
             has_value = False
             val = np.nan
@@ -710,6 +711,10 @@ def plot_tracts(data=None, atlas=None, custom_atlas_path=None, views=None, layou
 
         set_camera(plotter, cfg, zoom=zoom, distance=150)
         plotter.hide_axes()
+
+        if i == 0:
+            print(f"Completed view '{view_name}' with {len(tract_names)} tracts.")
+            add_context_to_view(plotter, ctx_meshes, cfg['side'], bmesh_alpha, bmesh_color, **shading_params)
 
     # colorbar
     if needs_bottom and scalar_bar_mapper:
