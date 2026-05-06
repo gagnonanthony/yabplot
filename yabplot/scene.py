@@ -92,7 +92,7 @@ def setup_plotter(sel_views, layout, figsize, display_type, needs_bottom_row=Tru
         row_weights = None
 
     plotter = pv.Plotter(shape=(nrows, ncols), groups=groups, row_weights=row_weights,
-                         off_screen=(display_type=='object'), window_size=figsize, border=False)
+                         off_screen=(display_type=='object' or display_type=='static'), window_size=figsize, border=False)
     plotter.set_background('white')
     return plotter, ncols, nrows
         
@@ -168,6 +168,7 @@ def finalize_plot(plotter, export_path, display_type):
                 f"[WARNING] unsupported export extension '{ext}'. file not saved. "
                 f"supported formats are: {', '.join(supported)}"
             )
+        return None
     
     if display_type == 'static': 
         out = plotter.show(jupyter_backend='static')
