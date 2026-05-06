@@ -161,7 +161,7 @@ def finalize_plot(plotter, export_path, display_type):
         if ext in vector_formats:
             plotter.save_graphic(export_path)
         elif ext in raster_formats:
-            plotter.screenshot(export_path, transparent_background=True)
+            plotter.screenshot(export_path, transparent_background=False)
         else:
             supported = vector_formats + raster_formats
             warnings.warn(
