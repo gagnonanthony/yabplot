@@ -711,10 +711,7 @@ def plot_tracts(data=None, atlas=None, custom_atlas_path=None, views=None, layou
 
         set_camera(plotter, cfg, zoom=zoom, distance=150)
         plotter.hide_axes()
-
-        if i == 0:
-            print(f"Completed view '{view_name}' with {len(tract_names)} tracts.")
-            add_context_to_view(plotter, ctx_meshes, cfg['side'], bmesh_alpha, bmesh_color, **shading_params)
+        plot = finalize_plot(plotter, f"figure{i}_{view_name}.png", display_type)
 
     # colorbar
     if needs_bottom and scalar_bar_mapper:
